@@ -149,7 +149,7 @@ def check_java():
     if result.returncode != 0 or not match:
         fail("Impossible de déterminer la version de Java avec « java -version ».")
 
-    if int(match.group(1)) != 21:
+    if int(match.group(1)) < 21:
         fail(
             "Java 21 est requis. Version détectée : "
             f"{match.group(1)}. Vérifie JAVA_HOME et le PATH."
@@ -289,6 +289,38 @@ def check_dependencies(os_name):
 
 def start_docker():
     print("🐳 Démarrage de Docker Compose...")
+
+    container_name = "office-postgres"
+    containers = run_check(
+        ["docker", "container", "ls", "--all", "--format", "{{.Names}}"]
+    )
+    if containers.returncode != 0:
+        details = (containers.stderr or containers.stdout).strip()
+        fail(f"Impossible de vérifier les conteneurs Docker.\n{details}")
+
+    if container_name in containers.stdout.splitlines():
+        inspected = run_check(
+            ["docker", "container", "inspect", "--format", "{{.State.Status}}", container_name]
+        )
+        if inspected.returncode != 0:
+            details = (inspected.stderr or inspected.stdout).strip()
+            fail(f"Impossible de vérifier le conteneur {container_name}.\n{details}")
+
+        if inspected.stdout.strip() == "running":
+            print(f"✓ Conteneur PostgreSQL existant réutilisé : {container_name}")
+            print()
+            return
+
+        result = subprocess.run(
+            ["docker", "container", "start", container_name],
+            check=False,
+        )
+        if result.returncode != 0:
+            fail(f"Impossible de démarrer le conteneur existant {container_name}.")
+
+        print(f"✓ Conteneur PostgreSQL existant démarré : {container_name}")
+        print()
+        return
 
     result = subprocess.run(
         ["docker", "compose", "-f", COMPOSE_FILE.name, "up", "-d"],
@@ -462,7 +494,7 @@ def stop_project():
         return False
 
     docker_result = run_check(
-        ["docker", "compose", "-f", COMPOSE_FILE.name, "down"],
+        ["docker", "compose", "-f", COMPOSE_FILE.name, "stop"],
         cwd=BACKEND_DIR,
     )
     if docker_result.returncode != 0:
@@ -470,7 +502,13 @@ def stop_project():
         print(f"❌ Impossible d'arrêter Docker Compose.\n{details}")
         return False
 
-    print("✓ PostgreSQL arrêté (les données du volume sont conservées)")
+    postgres_status = run_check(
+        ["docker", "container", "inspect", "--format", "{{.State.Status}}", "office-postgres"]
+    )
+    if postgres_status.returncode == 0 and postgres_status.stdout.strip() == "running":
+        print("• Conteneur office-postgres préexistant laissé actif.")
+    else:
+        print("✓ PostgreSQL arrêté (conteneur et données conservés)")
     return services_stopped
 
 
@@ -510,13 +548,22 @@ def apple_script_string(value):
 def start_mac_terminal(command, cwd, title):
     shell_command = f"cd {shlex.quote(str(cwd))} && {shlex.join(command)}"
     applescript = (
-        'tell application "Terminal"\n'
+        'tell application "iTerm"\n'
         "    activate\n"
-        f"    do script {apple_script_string(shell_command)}\n"
-        f"    set custom title of front window to {apple_script_string(title)}\n"
+        "    if (count of windows) is 0 then\n"
+        "        set terminalWindow to (create window with default profile)\n"
+        "    else\n"
+        "        set terminalWindow to current window\n"
+        "        tell terminalWindow to create tab with default profile\n"
+        "    end if\n"
+        f"    tell current session of terminalWindow to set name to {apple_script_string(title)}\n"
+        f"    tell current session of terminalWindow to write text {apple_script_string(shell_command)}\n"
         "end tell"
     )
-    subprocess.Popen(["osascript", "-e", applescript])
+    result = run_check(["osascript", "-e", applescript])
+    if result.returncode != 0:
+        details = (result.stderr or result.stdout).strip()
+        fail(f"Impossible d'ouvrir un onglet iTerm2.\n{details}")
 
 
 def start_linux_terminal(command, cwd, title):

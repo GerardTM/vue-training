@@ -98,9 +98,16 @@ tu peux aussi lancer `python run.py` depuis la racine. Le script vérifie les ve
 Java et Node.js, Docker, les fichiers de configuration et les dépendances frontend avant
 de démarrer PostgreSQL et les deux serveurs. Depuis Windows Terminal, lance le script
 dans un onglet Windows Terminal pour ouvrir le backend et le frontend dans de nouveaux
-onglets de la même fenêtre. Depuis les autres terminaux, il ouvre des fenêtres séparées.
+onglets de la même fenêtre. Sur macOS, il utilise iTerm2 et crée un onglet par service
+dans la fenêtre active ; si aucune fenêtre n'existe, il en ouvre une pour le premier
+service. iTerm2 doit être installé. Sur Linux, il ouvre un terminal par service.
 Pour arrêter les services lancés par le script et PostgreSQL proprement, utilise
 `python run.py --stop` ou choisis « Arrêter le projet » au menu.
+
+Si un conteneur nommé `office-postgres` existe déjà, le script le réutilise : il le laisse
+actif s'il tourne déjà ou le redémarre s'il est arrêté. Dans ce cas, ses identifiants
+doivent correspondre à ceux de `backend/.env`. À l'arrêt, le script ne supprime pas ce
+conteneur ; s'il appartient à un autre projet Compose, il le laisse actif.
 
 1. Démarrer PostgreSQL :
 
@@ -173,9 +180,10 @@ Pour arrêter proprement le frontend, le backend et PostgreSQL démarrés par `r
 python run.py --stop
 ```
 
-Cette commande envoie une interruption aux deux serveurs, attend leur arrêt, puis
-arrête PostgreSQL. Les données restent conservées dans le volume Docker. Les serveurs
-lancés manuellement ne sont pas contrôlés par le script : arrête-les avec `Ctrl+C`.
+Cette commande envoie une interruption aux deux serveurs et attend leur arrêt. Elle
+arrête PostgreSQL s'il est géré par ce projet Compose, sans supprimer le conteneur ni
+les données. Un conteneur préexistant géré par un autre projet est laissé actif. Les
+serveurs lancés manuellement ne sont pas contrôlés par le script : arrête-les avec `Ctrl+C`.
 Pour supprimer aussi le volume et toutes les données de la base :
 
 ```bash
