@@ -21,3 +21,6 @@ backend/.gradle/
 
 # Logs
 *.log
+
+# Local service-control state
+.run-state/

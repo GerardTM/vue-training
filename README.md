@@ -93,6 +93,15 @@ Puis ajuste `VITE_API_BASE_URL`. Les variables `VITE_*` sont intégrées au code
 
 Les commandes suivantes partent de la racine du dépôt, sauf indication contraire.
 
+Après avoir configuré `backend/.env` et installé les dépendances frontend avec `npm ci`,
+tu peux aussi lancer `python run.py` depuis la racine. Le script vérifie les versions de
+Java et Node.js, Docker, les fichiers de configuration et les dépendances frontend avant
+de démarrer PostgreSQL et les deux serveurs. Depuis Windows Terminal, lance le script
+dans un onglet Windows Terminal pour ouvrir le backend et le frontend dans de nouveaux
+onglets de la même fenêtre. Depuis les autres terminaux, il ouvre des fenêtres séparées.
+Pour arrêter les services lancés par le script et PostgreSQL proprement, utilise
+`python run.py --stop` ou choisis « Arrêter le projet » au menu.
+
 1. Démarrer PostgreSQL :
 
 ```bash
@@ -158,13 +167,16 @@ Cette commande vérifie les types TypeScript/Vue et génère les fichiers de pro
 
 ## Arrêter et réinitialiser
 
-Arrêter le backend avec `Ctrl+C`, puis arrêter PostgreSQL depuis la racine :
+Pour arrêter proprement le frontend, le backend et PostgreSQL démarrés par `run.py` :
 
 ```bash
-docker compose -f backend/docker-compose.yml down
+python run.py --stop
 ```
 
-Les données PostgreSQL sont conservées dans un volume Docker. Pour supprimer aussi ce volume et toutes les données de la base :
+Cette commande envoie une interruption aux deux serveurs, attend leur arrêt, puis
+arrête PostgreSQL. Les données restent conservées dans le volume Docker. Les serveurs
+lancés manuellement ne sont pas contrôlés par le script : arrête-les avec `Ctrl+C`.
+Pour supprimer aussi le volume et toutes les données de la base :
 
 ```bash
 docker compose -f backend/docker-compose.yml down -v
